@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>資工數位3A_陳奕呈_103021076_midterm</title>
+
+    <!-- Sets initial viewport load and disables zooming  -->
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1">
+
+    <!-- Makes your prototype chrome-less once bookmarked to your phone's home screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+    <!-- Include the compiled Ratchet CSS -->
+    <link href="css/ratchet.css" rel="stylesheet">
+    <link href="css/index.css" rel="stylesheet">
+    <script src="js/ratchet.js"></script>
+  </head>
+  <body>
+    <header class="bar bar-nav">
+      <a class="btn btn-link btn-nav pull-left" href="index.html">
+        <span class="icon icon-left-nav"></span>Back
+      </a>
+      <h1 class="title">第三題(通訊綠)</h1>
+    </header>
+
+    <!-- Wrap all non-bar HTML in the .content div (this is actually what scrolls) -->
+    <div class="content">
+      <form class="input-group">
+        <div class="input-row">
+          <label>姓名</label>
+          <input id="name" type="text" placeholder="GP">
+        </div>
+        <div class="input-row">
+          <label>暱稱</label>
+          <input id="nick" type="text" placeholder="Great Penguin">
+        </div>
+        <div class="input-row">
+          <label>電話</label>
+          <input id="phone" type="number" placeholder="0912122112">
+        </div>
+      </form>
+      <button class="btn btn-positive btn-block" id="addPerson">新增</button>
+      <div id="person_list"></div>
+      <div class="bar bar-standard bar-footer">
+      <h3>資訊工程學系(數位內容組)</h3>
+      </div>
+    </div>
+  </body>
+
+  <script>
+    if (!window.indexedDB){
+      window.alert("不支援IndexedDB~");
+    }else{
+      var request = window.indexedDB.open("myDB");
+      var db;
+
+      request.onsuccess = function (event){
+          db = event.target.result;
+          var transaction = db.transaction("Persons","readwrite");
+          var objStore = transaction.objectStore("Persons");
+          var show = objStore.openCursor();
+          show.onsuccess = function (event){
+            var cursor = event.target.result;
+            if(cursor){
+              var td_node = "<td>"+cursor.key+"</td>"+
+              "<td><input type='text' value='"+cursor.value.name+"'</td>"+
+              "<td><input type='text' value='"+cursor.value.nick+"'</td>"+
+              "<td><input type='text' value='"+cursor.value.phone+"'</td>"+
+              "<td><button class='person_update btn btn-primary' data-person-id='"+cursor.key+"'>更新</button>"+
+              "<button class='person_delete btn btn-negative' data-person-id='"+cursor.key+"'>刪除</button></td>"
+              var tr_node = document.createElement("tr");
+              tr_node.className = "table-view-cell";
+              tr_node.innerHTML = td_node;
+              person_list.appendChild(tr_node);
+              cursor.continue();
+            }
+            deletePerson();
+            updatePerson();
+          }
+          console.log('>> onsuccess()');
+      }
+
+      request.onerror = function (event){
+        console.log('Error:'+event.target.errorCode);
+      }
+
+      request.onupgradeneeded = function (event){
+        db = event.target.result;
+        var objStore = db.createObjectStore("Persons", {keyPath:"id", autoIncrement: true});
+
+        const personData = [
+          { name: "Kevin" , nick: "God" , phone: "0912345678" },
+          { name: "GP" , nick: "Penguin" , phone: "0987654321" }
+        ];
+
+        for(var i in personData){
+          objStore.add(personData[i]);
+        }
+
+        console.log(">> onupgradeneeded()");
+      }
+
+      document.querySelector("#addPerson").onclick = function(){
+        var name = document.querySelector("#name").value;
+        var nick = document.querySelector("#nick").value;
+        var phone = document.querySelector("#phone").value;
+
+        var transaction = db.transaction("Persons","readwrite");
+        var store = transaction.objectStore("Persons");
+        if(!name || !nick || !phone){
+          alert("欄位不能空空的!");
+        }else{
+          var insertRequest = store.add({"name":name , "nick":nick , "phone":phone});
+          insertRequest.onsuccess = function (event){
+            alert("新增成功!");
+            setTimeout(function(){location.reload();},100);
+          }
+
+          insertRequest.onerror = function (event){
+            alert("新增失敗:"+event.target.errorCode);
+          }
+        }
+      }
+
+      function deletePerson(){
+        var person_delete = document.querySelectorAll(".person_delete");
+        for (var i = 0 ; i<person_delete.length ; i++) {
+          person_delete[i].onclick = function(){
+            var store = db.transaction("Persons","readwrite").objectStore("Persons");
+            var deleteRequest = store.delete(parseInt(this.getAttribute("data-person-id")));
+
+            deleteRequest.onsuccess = function (event){
+              alert("刪除成功!");
+              setTimeout(function(){location.reload();},100);
+            }
+
+            deleteRequest.onerror = function (event){
+              alert("刪除失敗:"+event.target.errorCode);
+            }
+          }
+        }
+      }
+
+      function updatePerson(){
+        var person_update = document.querySelectorAll(".person_update");
+        for (var i = 0 ; i<person_update.length ; i++) {
+          person_update[i].onclick = function(){
+            var store = db.transaction("Persons","readwrite").objectStore("Persons");
+            var person = {
+              "name": this.parentNode.parentNode.childNodes[1].childNodes[0].value,
+              "nick": this.parentNode.parentNode.childNodes[2].childNodes[0].value,
+              "phone": this.parentNode.parentNode.childNodes[3].childNodes[0].value,
+              "id": parseInt(this.getAttribute("data-person-id"))
+            }
+            var updateRequest = store.put(person);
+            updateRequest.onsuccess = function (event){
+              alert("更新成功!");
+             setTimeout(function(){location.reload();},100);
+            }
+
+            updateRequest.onerror = function (event){
+              alert("更新失敗:"+event.target.errorCode);
+            }
+            
+          }
+        }
+      }
+    }
+
+      function reloadPage(){
+        setTimeout(function(){location.reload();},100);
+      }
+  </script>
+</html>
